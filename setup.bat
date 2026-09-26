@@ -29,6 +29,7 @@ if errorlevel 1 (
 if exist "%DIR%\play.bat" (
     echo Already set up in %DIR%
 ) else (
+    git config --global core.longpaths true
     echo Downloading the server and world, this can take a few minutes...
     git clone "%REPO%" "%DIR%"
     if errorlevel 1 (

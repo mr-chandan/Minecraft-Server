@@ -100,7 +100,7 @@ if "%MC_DRYRUN%"=="1" (
 REM ================= 4. Upload =================
 echo.
 echo ===== [4/4] Uploading the world to GitHub =====
-call sync.bat nopause
+call "%~dp0sync.bat" nopause
 call :pause_exit 0
 
 REM ---------------- helpers ----------------
@@ -150,9 +150,9 @@ exit /b 0
 
 :ram
 set "XMX=2G"
-for /f "skip=1 tokens=1" %%m in ('wmic computersystem get TotalPhysicalMemory 2^>nul') do if not "%%m"=="" set "TOTAL=%%m"
-if defined TOTAL (
-    set /a GB=!TOTAL:~0,-9! 2>nul
+set "GB="
+for /f "usebackq delims=" %%m in (`powershell -NoProfile -Command "[math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)"`) do set "GB=%%m"
+if defined GB (
     if !GB! GEQ 16 set "XMX=6G"
     if !GB! LSS 16 set "XMX=4G"
     if !GB! LSS 8 set "XMX=2G"
