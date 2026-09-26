@@ -1,0 +1,8 @@
+logs/
+*.log
+*.log.gz
+crash-reports/
+playit.exe
+my-address.txt
+world/session.lock
+.claude/
