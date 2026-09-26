@@ -12,7 +12,8 @@ Free, no queue, no paid hosting.
 ## Every time you want to play
 1. Double-click **Play Minecraft**.
 2. If nobody is hosting, you become the host. In Minecraft use Multiplayer > Direct Connect > `localhost`.
-   The very first time you host, it walks you through a one-time playit.gg tunnel setup (about 2 minutes).
+   The very first time you host, your browser opens playit.gg: sign in with Google, click Approve, click Create tunnel,
+   choose Minecraft Java, then copy the address at the top and paste it into the black window. Once only.
 3. If someone is already hosting, the window shows the address to join instead.
 4. To finish, type `stop` in the black window and press Enter. Wait for "World uploaded". Never close the window with the X.
 
@@ -22,7 +23,7 @@ Free, no queue, no paid hosting.
 - Upload keeps failing: check internet, run `sync.bat` again. Your work is saved locally until it uploads.
 
 ## Files
-- `play.bat` installs anything missing, pulls, locks, runs tunnel + server, then uploads.
+- `play.bat` installs anything missing (Git, Java, playit), pulls, locks, runs tunnel + server, then uploads.
 - `sync.bat` uploads the world and removes the host lock.
 - `setup.bat` one-time installer to send to friends.
 - `my-address.txt` your personal playit address (not shared, created on first host).

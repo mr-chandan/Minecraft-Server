@@ -1,11 +1,19 @@
 @echo off
+REM Run from a temp copy so pulling a newer play.bat cannot corrupt this running script.
+if /i not "%~dp0"=="%TEMP%\" (
+    copy /y "%~f0" "%TEMP%\mc-play.bat" >nul
+    set "MC_DIR=%~dp0"
+    "%TEMP%\mc-play.bat"
+    exit /b
+)
 setlocal EnableDelayedExpansion
-cd /d "%~dp0"
+cd /d "%MC_DIR%"
 title Minecraft Server
 if "%MC_NAME%"=="" set "MC_NAME=%COMPUTERNAME%"
 set "NAME=%MC_NAME%"
 
 REM ================= 0. Make sure Git and Java exist =================
+set "PLAYIT=%ProgramFiles%\playit_gg\bin\playit.exe"
 call :ensure_tools
 if errorlevel 1 exit /b 1
 
@@ -92,15 +100,15 @@ if "%MC_DRYRUN%"=="1" (
     echo [dry run] would start playit and java here
     echo dry-run-%RANDOM%>world\dryrun.txt
 ) else (
-    start "playit tunnel" /min playit.exe
+    "%PLAYIT%" start >nul 2>&1
     java -Xms1G -Xmx!XMX! -jar server.jar nogui
-    taskkill /f /im playit.exe >nul 2>&1
+    "%PLAYIT%" stop >nul 2>&1
 )
 
 REM ================= 4. Upload =================
 echo.
 echo ===== [4/4] Uploading the world to GitHub =====
-call "%~dp0sync.bat" nopause
+call "%MC_DIR%sync.bat" nopause
 call :pause_exit 0
 
 REM ---------------- helpers ----------------
@@ -119,10 +127,10 @@ if errorlevel 1 (
     for /d %%d in ("%ProgramFiles%\Microsoft\jdk-21*") do set "PATH=!PATH!;%%~d\bin"
     where java >nul 2>&1 || (echo Java install failed. Restart your PC and try again. & call :pause_exit 1)
 )
-if not exist playit.exe if not "%MC_DRYRUN%"=="1" (
-    echo Downloading the playit tunnel...
-    curl -L -s -o playit.exe https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-windows-x86_64.exe
-    if not exist playit.exe (echo Could not download playit. Check internet. & call :pause_exit 1)
+if not exist "%PLAYIT%" if not "%MC_DRYRUN%"=="1" (
+    echo Installing the playit tunnel app, this takes a minute. Click Yes if Windows asks...
+    winget install -e --id DevelopedMethods.playit --silent --accept-source-agreements --accept-package-agreements
+    if not exist "%PLAYIT%" (echo playit install failed. Restart your PC and try again. & call :pause_exit 1)
 )
 exit /b 0
 
@@ -135,15 +143,29 @@ if "%MC_DRYRUN%"=="1" (
 echo.
 echo ===== ONE-TIME TUNNEL SETUP (only the first time you host) =====
 echo.
-echo   1. A playit window will open and show a link like https://playit.gg/claim/xxxx
-echo   2. Open that link, sign in with Google, click "Add agent".
-echo   3. On the playit website click "Create tunnel", choose "Minecraft Java", click Add.
-echo   4. Copy the address it shows, something like  xxxx.joinmc.link
+echo   Your browser will open playit.gg in a moment.
+echo     1. Sign in with Google and click the big Approve / Add button.
+echo     2. Click "Create tunnel", choose "Minecraft Java", click Add.
+echo     3. Copy the address shown at the top, it looks like  xxxx.joinmc.link
 echo.
-start "playit tunnel" playit.exe
+set "SETUPLOG=%TEMP%\playit-setup.txt"
+del "%SETUPLOG%" >nul 2>&1
+start "playit setup" /min cmd /c ""%PLAYIT%" setup > "%SETUPLOG%" 2>&1"
+set "URL="
+for /l %%i in (1,1,30) do (
+    if not defined URL (
+        timeout /t 1 /nobreak >nul
+        if exist "%SETUPLOG%" for /f "tokens=*" %%u in ('findstr /i "playit.gg/claim" "%SETUPLOG%"') do set "URL=%%u"
+    )
+)
+if defined URL (
+    start "" "!URL!"
+) else (
+    echo Could not get the sign-in link automatically. Type "playit setup" in a new window and open the link it shows.
+)
+echo.
 set "ADDR="
-set /p ADDR=Paste that address here and press Enter:
-taskkill /f /im playit.exe >nul 2>&1
+set /p ADDR=Paste the address here and press Enter: 
 if "!ADDR!"=="" (echo No address entered. & call :pause_exit 1)
 echo !ADDR!>my-address.txt
 exit /b 0
