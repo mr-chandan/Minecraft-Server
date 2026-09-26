@@ -39,7 +39,9 @@ if exist "%DIR%\play.bat" (
     )
 )
 
-> "%USERPROFILE%\Desktop\Play Minecraft.bat" (
+set "DESKTOP=%USERPROFILE%\Desktop"
+for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"`) do set "DESKTOP=%%d"
+> "%DESKTOP%\Play Minecraft.bat" (
     echo @echo off
     echo cd /d "%DIR%"
     echo call play.bat
