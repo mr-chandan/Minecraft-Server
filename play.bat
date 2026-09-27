@@ -135,18 +135,34 @@ if not exist "%PLAYIT%" if not "%MC_DRYRUN%"=="1" (
 exit /b 0
 
 :ensure_address
-if exist my-address.txt exit /b 0
 if "%MC_DRYRUN%"=="1" (
-    echo test.joinmc.link>my-address.txt
+    if not exist my-address.txt echo test.joinmc.link>my-address.txt
     exit /b 0
 )
+call :ensure_linked
+call :ensure_tunnel
+if exist my-address.txt exit /b 0
 echo.
-echo ===== ONE-TIME TUNNEL SETUP (only the first time you host) =====
+echo   Copy your tunnel address from the playit website. It is shown at the top of the tunnel page.
+echo.
+set "ADDR="
+set /p ADDR=Paste the address here and press Enter:
+if "!ADDR!"=="" (echo No address entered. & call :pause_exit 1)
+echo !ADDR!>my-address.txt
+exit /b 0
+
+REM Link this PC to a playit account. Skipped when already linked.
+:ensure_linked
+"%PLAYIT%" start >nul 2>&1
+timeout /t 2 /nobreak >nul
+"%PLAYIT%" status 2>nul | findstr /c:"Secret configured: true" >nul
+if not errorlevel 1 exit /b 0
+echo.
+echo ===== ONE-TIME SETUP: link this PC to playit (first time only) =====
 echo.
 echo   Your browser will open playit.gg in a moment.
-echo     1. Sign in with Google and click the big Approve / Add button.
-echo     2. Click "Create tunnel", choose "Minecraft Java", click Add.
-echo     3. Copy the address shown at the top, it looks like  xxxx.joinmc.link
+echo   Sign in with Google, then click the Approve button.
+echo   This window continues by itself once you have approved.
 echo.
 set "SETUPLOG=%TEMP%\playit-setup.txt"
 del "%SETUPLOG%" >nul 2>&1
@@ -155,19 +171,54 @@ set "URL="
 for /l %%i in (1,1,30) do (
     if not defined URL (
         timeout /t 1 /nobreak >nul
-        if exist "%SETUPLOG%" for /f "tokens=*" %%u in ('findstr /i "playit.gg/claim" "%SETUPLOG%"') do set "URL=%%u"
+        if exist "%SETUPLOG%" for /f "tokens=*" %%u in ('findstr /b /i "https://playit.gg/claim" "%SETUPLOG%"') do set "URL=%%u"
     )
 )
 if defined URL (
     start "" "!URL!"
+    echo   If the browser did not open, go to:  !URL!
 ) else (
-    echo Could not get the sign-in link automatically. Type "playit setup" in a new window and open the link it shows.
+    echo Could not get the sign-in link. Restart your PC and try again.
+    call :pause_exit 1
 )
+set "LINKED="
+for /l %%i in (1,1,120) do (
+    if not defined LINKED (
+        timeout /t 5 /nobreak >nul
+        "%PLAYIT%" status 2>nul | findstr /c:"Secret configured: true" >nul && set "LINKED=1"
+    )
+)
+if not defined LINKED (
+    echo Timed out waiting for approval. Run Play Minecraft again.
+    call :pause_exit 1
+)
+echo   Linked.
+timeout /t 5 /nobreak >nul
+exit /b 0
+
+REM Make sure at least one tunnel is attached to this PC.
+:ensure_tunnel
+call :tunnel_count
+if not "!TCOUNT!"=="0" exit /b 0
 echo.
-set "ADDR="
-set /p ADDR=Paste the address here and press Enter: 
-if "!ADDR!"=="" (echo No address entered. & call :pause_exit 1)
-echo !ADDR!>my-address.txt
+echo ===== ONE-TIME SETUP: create your tunnel =====
+echo.
+echo   This PC has no tunnel yet. Your browser will open the playit tunnels page.
+echo     1. Click "Create tunnel" (or "Add tunnel").
+echo     2. Choose "Minecraft Java". Make sure the agent is THIS PC. Click Add.
+echo     3. Come back here and press a key.
+echo.
+del my-address.txt >nul 2>&1
+start "" "https://playit.gg/account/tunnels"
+pause
+"%PLAYIT%" stop >nul 2>&1
+"%PLAYIT%" start >nul 2>&1
+timeout /t 8 /nobreak >nul
+goto ensure_tunnel
+
+:tunnel_count
+set "TCOUNT=x"
+for /f "usebackq delims=" %%c in (`powershell -NoProfile -Command "$m = (Select-String -Path ($env:ProgramData + '\playit_gg\logs\playitd.log') -Pattern ' tunnel_count=(\d+)'); if ($m) { @($m)[-1].Matches[0].Groups[1].Value } else { 'x' }"`) do set "TCOUNT=%%c"
 exit /b 0
 
 :ram
